@@ -57,10 +57,13 @@ docker run -d \
   --name memes-api \
   -p 8080:8080 \
   -e SPRING_PROFILES_ACTIVE=prod \
-  -e DB_HOST=your-mysql-host \
-  -e DB_USERNAME=your-username \
-  -e DB_PASSWORD=your-password \
-  -e DASHSCOPE_API_KEY=your-ai-api-key \
+  -e jdbcUrl=jdbc:mysql://your-mysql-host:3306/memes?useSSL=false&serverTimezone=UTC&characterEncoding=utf8 \
+  -e jdbcUser=your-username \
+  -e jdbcPassword=your-password \
+  -e dashscopeApiKey=your-ai-api-key \
+  -e token=your-admin-token \
+  -e storage=local \
+  -e urlPrefix=http://localhost:8080 \
   ghcr.io/szemeng76/memes:latest
 ```
 
@@ -75,12 +78,17 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - DB_HOST=mysql
-      - DB_USERNAME=memes
-      - DB_PASSWORD=your-password
-      - DASHSCOPE_API_KEY=your-ai-api-key
+      - jdbcUrl=jdbc:mysql://mysql:3306/memes?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
+      - jdbcUser=memes
+      - jdbcPassword=your-password
+      - dashscopeApiKey=your-ai-api-key
+      - token=your-admin-token
+      - storage=local
+      - urlPrefix=http://localhost:8080
     depends_on:
       - mysql
+    volumes:
+      - ./uploads:/memes
     
   mysql:
     image: mysql:8.0
@@ -89,6 +97,8 @@ services:
       - MYSQL_DATABASE=memes
       - MYSQL_USER=memes
       - MYSQL_PASSWORD=your-password
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql.sql:/docker-entrypoint-initdb.d/init.sql
@@ -121,10 +131,13 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `SPRING_PROFILES_ACTIVE` | 运行环境 | `dev` |
-| `DB_HOST` | 数据库主机 | `localhost` |
-| `DB_USERNAME` | 数据库用户名 | - |
-| `DB_PASSWORD` | 数据库密码 | - |
-| `DASHSCOPE_API_KEY` | 通义千问API密钥 | - |
+| `jdbcUrl` | 数据库连接URL | - |
+| `jdbcUser` | 数据库用户名 | - |
+| `jdbcPassword` | 数据库密码 | - |
+| `dashscopeApiKey` | 通义千问API密钥 | - |
+| `token` | 管理员认证Token | - |
+| `storage` | 存储类型 | `local` |
+| `urlPrefix` | 文件访问URL前缀 | `localhost:8080` |
 
 ### 配置文件
 
