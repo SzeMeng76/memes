@@ -20,21 +20,12 @@
     <artifactId>dashscope-sdk-java</artifactId>
 </dependency>
 
-<!-- 添加 -->
+<!-- 添加 Spring AI OpenAI -->
 <dependency>
     <groupId>org.springframework.ai</groupId>
-    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
-    <version>1.0.0-M6</version>
+    <artifactId>spring-ai-starter-model-openai</artifactId>
+    <version>1.0.1</version>
 </dependency>
-
-<!-- 添加 Spring Milestone Repository -->
-<repositories>
-    <repository>
-        <id>spring-milestones</id>
-        <name>Spring Milestones</name>
-        <url>https://repo.spring.io/milestone</url>
-    </repository>
-</repositories>
 ```
 
 ### 2. 配置更新 (application.yaml)
