@@ -22,10 +22,19 @@
 
 <!-- 添加 -->
 <dependency>
-    <groupId>io.github.sashirestela</groupId>
-    <artifactId>simple-openai</artifactId>
-    <version>3.9.0</version>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+    <version>1.0.0-M6</version>
 </dependency>
+
+<!-- 添加 Spring Milestone Repository -->
+<repositories>
+    <repository>
+        <id>spring-milestones</id>
+        <name>Spring Milestones</name>
+        <url>https://repo.spring.io/milestone</url>
+    </repository>
+</repositories>
 ```
 
 ### 2. 配置更新 (application.yaml)
@@ -34,17 +43,22 @@
 dashscope:
   apiKey: ${dashscopeApiKey}
 
-# 新配置
-openai:
-  apiKey: ${OPENAI_API_KEY}
-  baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  model: ${OPENAI_MODEL:gpt-4o}
-  visionModel: ${OPENAI_VISION_MODEL:gpt-4o}
+# 新配置 (Spring AI)
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+          temperature: 0.0
 ```
 
 ### 3. 代码重构
-- `AiReviewer.java` - 使用 OpenAI Vision API 进行图片审核
-- `SharpReview.java` - 使用 OpenAI Chat API 进行文本生成
+- `AiReviewer.java` - 使用 Spring AI OpenAI Vision API 进行图片审核
+- `SharpReview.java` - 使用 Spring AI OpenAI Chat API 进行文本生成
+- 两个类都通过依赖注入 `ChatModel` 来调用 AI 服务
 
 ---
 
@@ -61,7 +75,6 @@ openai:
    - OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
    - OPENAI_BASE_URL=https://api.openai.com/v1
    - OPENAI_MODEL=gpt-4o-mini
-   - OPENAI_VISION_MODEL=gpt-4o-mini
    ```
 
 3. **推荐模型**
@@ -80,7 +93,6 @@ openai:
    - OPENAI_API_KEY=sk-xxxxxxxxxxxxx
    - OPENAI_BASE_URL=https://api.deepseek.com
    - OPENAI_MODEL=deepseek-chat
-   - OPENAI_VISION_MODEL=deepseek-chat
    ```
 
 3. **DeepSeek 优势**
@@ -100,7 +112,6 @@ openai:
    - OPENAI_API_KEY=sk-or-v1-xxxxxxxxxxxxx
    - OPENAI_BASE_URL=https://openrouter.ai/api/v1
    - OPENAI_MODEL=google/gemini-pro-1.5
-   - OPENAI_VISION_MODEL=google/gemini-pro-vision
    ```
 
 ### 方案 4: 使用自定义 OpenAI 兼容服务
@@ -110,7 +121,6 @@ openai:
 - OPENAI_API_KEY=your_api_key
 - OPENAI_BASE_URL=https://your-custom-endpoint.com/v1
 - OPENAI_MODEL=your-model-name
-- OPENAI_VISION_MODEL=your-vision-model-name
 ```
 
 ---
@@ -156,7 +166,7 @@ docker compose logs -f memes-app | grep -i "openai\|review"
 
 查看日志，应该看到：
 ```
-OpenAI client initialized with base URL: https://api.openai.com/v1, model: gpt-4o-mini
+Spring AI OpenAI ChatModel initialized with model: gpt-4o-mini
 Starting AI reviewer...
 Starting sharp reviewer...
 ```
@@ -170,8 +180,7 @@ Starting sharp reviewer...
 environment:
   - OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
   - OPENAI_BASE_URL=https://api.openai.com/v1
-  - OPENAI_MODEL=gpt-4o-mini          # 文本生成模型
-  - OPENAI_VISION_MODEL=gpt-4o-mini   # 图片分析模型
+  - OPENAI_MODEL=gpt-4o-mini
 ```
 
 ### DeepSeek (推荐用于成本优化)
@@ -180,7 +189,6 @@ environment:
   - OPENAI_API_KEY=sk-xxxxxxxxxxxxx
   - OPENAI_BASE_URL=https://api.deepseek.com
   - OPENAI_MODEL=deepseek-chat
-  - OPENAI_VISION_MODEL=deepseek-chat
 ```
 
 ### 使用环境变量文件 (.env)

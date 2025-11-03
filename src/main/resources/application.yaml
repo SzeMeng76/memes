@@ -16,11 +16,15 @@ spring:
   main:
     lazy-initialization: true
 
-openai:
-  apiKey: ${OPENAI_API_KEY}
-  baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  model: ${OPENAI_MODEL:gpt-4o}
-  visionModel: ${OPENAI_VISION_MODEL:gpt-4o}
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+          temperature: 0.0
 server:
   port: 8080
 

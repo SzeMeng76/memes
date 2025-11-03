@@ -3,17 +3,24 @@ package com.memes.schedule;
 import static com.memes.util.GsonUtil.extractJsonFromModelOutput;
 
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.model.Media;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.util.StreamUtils;
 
 import com.google.protobuf.util.JsonFormat;
@@ -22,13 +29,6 @@ import com.memes.model.transport.LLMReviewResult;
 import com.memes.model.transport.ReviewOutcome;
 import com.memes.service.MediaContentService;
 
-import io.github.sashirestela.openai.SimpleOpenAI;
-import io.github.sashirestela.openai.domain.chat.ChatRequest;
-import io.github.sashirestela.openai.domain.chat.ChatResponse;
-import io.github.sashirestela.openai.domain.chat.message.ChatMsg;
-import io.github.sashirestela.openai.domain.chat.message.ChatMsgUser;
-import io.github.sashirestela.openai.domain.chat.message.ImageUrl;
-import io.github.sashirestela.openai.domain.chat.message.ImageUrl.Detail;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -41,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AiReviewer {
 
     final MeterRegistry registry;
+    final ChatModel chatModel;
 
     private static String SYS_PROMPT;
     private static final String REVIEW_PROMPT = "请审核这个图片";
@@ -48,16 +49,9 @@ public class AiReviewer {
     @Value("classpath:prompt.xml")
     private Resource promptResource;
 
-    @Value("${openai.apiKey}")
-    private String apiKey;
+    @Value("${spring.ai.openai.chat.options.model}")
+    private String model;
 
-    @Value("${openai.baseUrl}")
-    private String baseUrl;
-
-    @Value("${openai.visionModel}")
-    private String visionModel;
-
-    private SimpleOpenAI openAI;
     private final MediaContentService mediaContentService;
     private final ExecutorService reviewExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r);
@@ -65,22 +59,16 @@ public class AiReviewer {
         return thread;
     });
 
-    public AiReviewer(MeterRegistry registry, MediaContentService mediaContentService) {
+    public AiReviewer(MeterRegistry registry, ChatModel chatModel, MediaContentService mediaContentService) {
         this.registry = registry;
+        this.chatModel = chatModel;
         this.mediaContentService = mediaContentService;
     }
 
     @PostConstruct
     public void init() throws IOException {
         SYS_PROMPT = StreamUtils.copyToString(promptResource.getInputStream(), StandardCharsets.UTF_8);
-
-        // Initialize OpenAI client with custom base URL support
-        openAI = SimpleOpenAI.builder()
-            .apiKey(apiKey)
-            .baseUrl(baseUrl)
-            .build();
-
-        log.info("OpenAI client initialized with base URL: {}, model: {}", baseUrl, visionModel);
+        log.info("Spring AI OpenAI ChatModel initialized with model: {}", model);
         startReview();
     }
 
@@ -112,46 +100,51 @@ public class AiReviewer {
     }
 
     /**
-     * 调用 OpenAI Vision API 审核图片
+     * 调用 Spring AI OpenAI Vision API 审核图片
      *
      * @param url 图片链接
      * @return LLMReviewResult
      */
     public LLMReviewResult callWithRemoteImage(String url) {
         try {
-            log.debug("Calling OpenAI Vision API with URL: {}", url);
+            log.debug("Calling Spring AI OpenAI Vision API with URL: {}", url);
 
-            // Create chat request with vision capability
-            var chatRequest = ChatRequest.builder()
-                .model(visionModel)
-                .messages(List.of(
-                    ChatMsg.SystemMessage.of(SYS_PROMPT),
-                    ChatMsgUser.of(
-                        ChatMsgUser.UserContent.of(REVIEW_PROMPT),
-                        ChatMsgUser.UserContent.of(ImageUrl.of(url, Detail.AUTO))
-                    )
-                ))
+            // Create media object from image URL
+            UrlResource imageResource = new UrlResource(new URL(url));
+            Media media = new Media(MimeTypeUtils.IMAGE_PNG, imageResource);
+
+            // Create user message with system prompt, text, and image
+            var userMessage = new org.springframework.ai.chat.messages.UserMessage(
+                SYS_PROMPT + "\n\n" + REVIEW_PROMPT,
+                List.of(media)
+            );
+
+            // Create prompt with options
+            var chatOptions = OpenAiChatOptions.builder()
+                .model(model)
                 .temperature(0.0)
                 .maxTokens(1000)
                 .build();
 
+            var prompt = new Prompt(List.of(userMessage), chatOptions);
+
             // Call OpenAI API
-            ChatResponse response = openAI.chatCompletions()
-                .create(chatRequest)
-                .join();
+            var response = chatModel.call(prompt);
 
             // Handle usage statistics
-            var usage = response.getUsage();
-            log.info("OpenAI API Usage: prompt_tokens={}, completion_tokens={}, total_tokens={}",
-                usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens());
+            var usage = response.getMetadata().getUsage();
+            if (usage != null) {
+                log.info("OpenAI API Usage: prompt_tokens={}, generation_tokens={}, total_tokens={}",
+                    usage.getPromptTokens(), usage.getGenerationTokens(), usage.getTotalTokens());
 
-            registry.counter("total_token", "model", visionModel).increment(usage.getTotalTokens());
-            registry.counter("input_token", "model", visionModel).increment(usage.getPromptTokens());
-            registry.counter("output_token", "model", visionModel).increment(usage.getCompletionTokens());
-            log.info("Sent LLM Usage Data to metrics.");
+                registry.counter("total_token", "model", model).increment(usage.getTotalTokens());
+                registry.counter("input_token", "model", model).increment(usage.getPromptTokens());
+                registry.counter("output_token", "model", model).increment(usage.getGenerationTokens());
+                log.info("Sent LLM Usage Data to metrics.");
+            }
 
             // Extract and parse model output
-            String modelOut = response.firstContent();
+            String modelOut = response.getResult().getOutput().getContent();
             String jsonStr = extractJsonFromModelOutput(modelOut);
             log.debug("Raw LLM Output: {}", jsonStr);
 
@@ -160,12 +153,12 @@ public class AiReviewer {
             return builder.build();
 
         } catch (Exception e) {
-            log.error("Error calling OpenAI Vision API. URL: {}", url, e);
-            registry.counter("llm_api_error", "model", visionModel).increment();
+            log.error("Error calling Spring AI OpenAI Vision API. URL: {}", url, e);
+            registry.counter("llm_api_error", "model", model).increment();
 
             String errorMsg = e.getMessage();
             if (errorMsg != null && (errorMsg.contains("content_policy_violation") || errorMsg.contains("inappropriate"))) {
-                registry.counter("llm_inappropriate_content", "model", visionModel).increment();
+                registry.counter("llm_inappropriate_content", "model", model).increment();
                 return LLMReviewResult.newBuilder()
                     .setOutcome(ReviewOutcome.FLAGGED)
                     .setFailureReason("Content policy violation: " + errorMsg)
