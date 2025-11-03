@@ -149,6 +149,13 @@
             <version>1.0.1</version>
         </dependency>
 
+        <!-- JetBrains Annotations for @NotNull -->
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.1.0</version>
+        </dependency>
+
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
