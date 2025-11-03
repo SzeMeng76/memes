@@ -144,7 +144,7 @@ public class AiReviewer {
             }
 
             // Extract and parse model output
-            String modelOut = response.getResult().getOutput().getContent();
+            String modelOut = response.getResult().getOutput().getText();
             String jsonStr = extractJsonFromModelOutput(modelOut);
             log.debug("Raw LLM Output: {}", jsonStr);
 

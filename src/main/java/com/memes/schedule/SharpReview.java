@@ -126,7 +126,7 @@ public class SharpReview {
             }
 
             // Get response content
-            String content = response.getResult().getOutput().getContent();
+            String content = response.getResult().getOutput().getText();
             if (StringUtils.isNotEmpty(content)) {
                 log.info("LLM Output: {}", content);
                 mediaContent.setSharpReview(content);
