@@ -113,12 +113,12 @@ public class AiReviewer {
             UrlResource imageResource = new UrlResource(new URL(url));
             Media media = new Media(MimeTypeUtils.IMAGE_PNG, imageResource);
 
-            // Create user message with system prompt, text, and image
-            var userMessage = new org.springframework.ai.chat.messages.UserMessage(
-                SYS_PROMPT + "\n\n" + REVIEW_PROMPT,
-                List.of(media),
-                java.util.Map.of()
-            );
+            // Create system and user messages
+            var systemMessage = new org.springframework.ai.chat.messages.SystemMessage(SYS_PROMPT);
+            var userMessage = org.springframework.ai.chat.messages.UserMessage.builder()
+                .text(REVIEW_PROMPT)
+                .media(media)
+                .build();
 
             // Create prompt with options
             var chatOptions = OpenAiChatOptions.builder()
@@ -127,7 +127,7 @@ public class AiReviewer {
                 .maxTokens(1000)
                 .build();
 
-            var prompt = new Prompt(List.of(userMessage), chatOptions);
+            var prompt = new Prompt(List.of(systemMessage, userMessage), chatOptions);
 
             // Call OpenAI API
             var response = chatModel.call(prompt);
