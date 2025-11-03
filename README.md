@@ -1,317 +1,352 @@
-# Memes Backend API
+# Memes - AI 驱动的表情包社区平台
 
-专为北邮人设计的贴图秀投稿系统后端API服务。
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Java](https://img.shields.io/badge/Java-21-orange.svg)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.3-brightgreen.svg)
+![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0.1-blue.svg)
 
-## 技术栈
+基于 Spring Boot 3 的表情包分享平台，支持 AI 智能审核和自动生成犀利点评。
 
-- **框架**: Spring Boot 3.4.3
-- **语言**: Java 21 (启用预览特性)
-- **数据库**: MySQL (生产) / H2 (测试)
-- **ORM**: MyBatis Plus
-- **存储服务**: 
-  - 阿里云OSS
-  - 七牛云存储
-  - 本地存储 (开发测试)
-- **AI服务**: 阿里云通义千问 (内容审核)
-- **监控**: Micrometer + InfluxDB
-- **构建工具**: Maven
-- **代码规范**: Spotless + Eclipse Formatter
+**本项目是基于原作者项目的二次开发版本**，主要改进：
+- ✅ 从 Alibaba DashScope 迁移到 **OpenAI 兼容 API**
+- ✅ 支持 **OpenAI**、**DeepSeek**、**Gemini** 等多种 AI 服务
+- ✅ 支持自定义 OpenAI 兼容端点
+- ✅ 更灵活的配置和更低的使用成本
 
-## 主要功能
+---
 
-### 核心API
-- **投稿管理** (`/api/submission`)
-  - 分页列表查询 (支持随机排序)
-  - 内容更新和删除 (需要管理员权限)
-  - 点赞/反馈统计
-  - 内容置顶功能
-- **媒体内容** (`/api/media`)
-  - 文件上传 (图片/视频)
-  - 多种存储后端支持
-- **管理功能** (`/api/admin`)
-  - 访问统计
-  - 系统配置管理
-- **配置管理** (`/api/config`)
-  - 动态配置更新
+## 🎯 项目特色
 
-### 智能审核
-- **AI内容审核**: 集成阿里云通义千问，自动识别不当内容
-- **定时任务**: 自动化内容审核和统计分析
-- **Sharp Review**: 基于规则的快速审核
+### AI 功能
+- 🤖 **智能图片审核** - 使用 Vision API 自动审核上传的图片内容
+- 💬 **AI 犀利点评** - 自动生成幽默风趣的图片点评
+- 📊 **Token 使用监控** - 实时追踪 AI API 调用成本
+- 🔄 **多模型支持** - 轻松切换不同 AI 服务提供商
 
-### 存储支持
-- **多云存储**: 支持阿里云OSS、七牛云存储
-- **本地存储**: 开发测试环境支持
-- **自动切换**: 根据配置自动选择存储后端
+### 社区功能
+- 📱 **表情包分享** - 上传和分享有趣的表情包
+- 🔍 **智能搜索** - 快速找到你想要的表情包
+- 👥 **用户系统** - 完整的用户注册和管理
+- 💾 **本地/云存储** - 灵活的文件存储方案
 
-## 快速开始
+### MCP 协议支持
+- 🚀 **实时更新** - 支持 SSE (Server-Sent Events) 实时推送
+- 🔌 **MCP 端点** - https://mcp.bupt.site/sse
+- 🛠️ **推荐客户端** - [Cherry Studio](https://github.com/CherryHQ/cherry-studio)
 
-### 使用 Docker (推荐)
+---
 
-```bash
-# 拉取预构建镜像
-docker pull ghcr.io/szemeng76/memes:latest
+## 🚀 快速开始
 
-# 运行容器
-docker run -d \
-  --name memes-api \
-  -p 8080:8080 \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  -e jdbcUrl=jdbc:mysql://your-mysql-host:3306/memes?useSSL=false&serverTimezone=UTC&characterEncoding=utf8 \
-  -e jdbcUser=your-username \
-  -e jdbcPassword=your-password \
-  -e dashscopeApiKey=your-ai-api-key \
-  -e token=your-admin-token \
-  -e storage=local \
-  -e urlPrefix=http://localhost:8080 \
-  ghcr.io/szemeng76/memes:latest
-```
+### 先决条件
 
-### 使用 Docker Compose
+- Docker & Docker Compose
+- OpenAI API Key (或 DeepSeek / 自定义端点)
+- 域名（用于图片外网访问）
+
+### 一键部署
+
+1. **克隆仓库**
+   ```bash
+   git clone https://github.com/szemeng76/memes.git
+   cd memes
+   ```
+
+2. **配置环境变量**
+
+   编辑 `docker-compose.yml`，修改以下配置：
+   ```yaml
+   environment:
+     # OpenAI API 配置
+     - OPENAI_API_KEY=your_api_key_here          # 你的 API Key
+     - OPENAI_BASE_URL=https://api.openai.com    # API 端点（不含 /v1）
+     - OPENAI_MODEL=gpt-4o-mini                  # 使用的模型
+
+     # 数据库密码
+     - jdbcPassword=your_password
+
+     # 应用 Token
+     - token=your_app_token
+
+     # 图片访问 URL 前缀
+     - urlPrefix=https://your-domain.com/
+   ```
+
+3. **启动服务**
+   ```bash
+   docker compose up -d
+   ```
+
+4. **查看日志**
+   ```bash
+   docker compose logs -f memes-app
+   ```
+
+5. **访问应用**
+   - 应用地址: `http://localhost:8081`
+   - InfluxDB 监控: `http://localhost:8086`
+
+---
+
+## 🔧 配置选项
+
+### 使用 OpenAI (官方)
 
 ```yaml
-version: '3.8'
-services:
-  memes-api:
-    image: ghcr.io/szemeng76/memes:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - jdbcUrl=jdbc:mysql://mysql:3306/memes?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
-      - jdbcUser=memes
-      - jdbcPassword=your-password
-      - dashscopeApiKey=your-ai-api-key
-      - token=your-admin-token
-      - storage=local
-      - urlPrefix=http://localhost:8080
-    depends_on:
-      - mysql
-    volumes:
-      - ./uploads:/memes
-    
-  mysql:
-    image: mysql:8.0
-    environment:
-      - MYSQL_ROOT_PASSWORD=root-password
-      - MYSQL_DATABASE=memes
-      - MYSQL_USER=memes
-      - MYSQL_PASSWORD=your-password
-      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
-      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./sql.sql:/docker-entrypoint-initdb.d/init.sql
-
-volumes:
-  mysql_data:
+- OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
+- OPENAI_BASE_URL=https://api.openai.com
+- OPENAI_MODEL=gpt-4o-mini
 ```
 
-### 本地开发
+**推荐模型**:
+- `gpt-4o-mini` - 性价比最高
+- `gpt-4o` - 能力最强
 
+### 使用 DeepSeek (更便宜)
+
+```yaml
+- OPENAI_API_KEY=sk-xxxxxxxxxxxxx
+- OPENAI_BASE_URL=https://api.deepseek.com
+- OPENAI_MODEL=deepseek-chat
+```
+
+**优势**:
+- 💰 价格约为 OpenAI 的 1/10
+- 🚀 响应速度快
+- 🌍 对海外服务器友好
+
+### 使用自定义端点
+
+```yaml
+- OPENAI_API_KEY=your_api_key
+- OPENAI_BASE_URL=https://api.yourdomain.com
+- OPENAI_MODEL=gpt-4o-mini
+```
+
+**注意**: 不要在 Base URL 末尾添加 `/v1`，Spring AI 会自动添加。
+
+---
+
+## 📖 详细文档
+
+- 📋 [OpenAI 迁移指南](OPENAI_MIGRATION.md) - 完整的迁移说明和配置指南
+- 🔍 [故障排查指南](OPENAI_MIGRATION.md#-故障排查) - 常见问题解决方案
+- ⚙️ [高级配置](OPENAI_MIGRATION.md#-高级配置) - 性能优化和自定义配置
+- 📊 [监控指标](OPENAI_MIGRATION.md#-监控和指标) - Token 使用监控和成本估算
+
+---
+
+## 💰 成本对比
+
+| 服务 | 输入价格 (每 1M tokens) | 输出价格 (每 1M tokens) | 推荐场景 |
+|------|------------------------|------------------------|---------|
+| **OpenAI GPT-4o-mini** | $0.15 | $0.60 | 生产环境，图片审核 |
+| **OpenAI GPT-4o** | $2.50 | $10.00 | 复杂审核任务 |
+| **DeepSeek** | $0.14 | $0.28 | 开发测试，成本优化 |
+
+💡 **建议**: 开发/测试用 DeepSeek，生产环境用 GPT-4o-mini
+
+---
+
+## 🏗️ 技术栈
+
+### 后端
+- **Spring Boot 3.4.3** - 现代化的 Java 框架
+- **Spring AI 1.0.1** - 统一的 AI 模型集成
+- **MyBatis Plus** - 强大的持久层框架
+- **Redis** - 缓存和会话管理
+- **MySQL 8.0** - 关系型数据库
+
+### 监控
+- **Micrometer** - 应用指标收集
+- **InfluxDB 2.7** - 时序数据库
+- **自定义指标** - Token 使用、审核结果统计
+
+### DevOps
+- **Docker & Docker Compose** - 容器化部署
+- **GitHub Actions** - CI/CD 自动化
+- **GHCR** - 容器镜像托管
+
+---
+
+## 📦 项目结构
+
+```
+memes/
+├── src/main/java/com/memes/
+│   ├── controller/          # REST API 控制器
+│   ├── service/             # 业务逻辑层
+│   ├── schedule/            # 定时任务（AI 审核）
+│   │   ├── AiReviewer.java  # 图片审核服务
+│   │   └── SharpReview.java # 犀利点评服务
+│   ├── model/               # 数据模型
+│   └── util/                # 工具类
+├── src/main/resources/
+│   ├── application.yaml     # 主配置文件
+│   ├── prompt.xml           # AI 审核提示词
+│   └── sharp_review.xml     # 犀利点评提示词
+├── docker-compose.yml       # Docker 编排文件
+├── Dockerfile              # 镜像构建文件
+├── pom.xml                 # Maven 依赖管理
+├── README.md               # 本文件
+└── OPENAI_MIGRATION.md     # OpenAI 迁移指南
+```
+
+---
+
+## 🔨 本地开发
+
+### 环境要求
+- JDK 21+
+- Maven 3.9+
+- MySQL 8.0
+- Redis 7+
+
+### 编译项目
 ```bash
-# 克隆项目
-git clone <your-repo>
-cd memes-master
+mvn clean package
+```
 
-# 安装依赖并编译
-mvn clean compile
-
-# 运行测试
+### 运行测试
+```bash
 mvn test
-
-# 启动开发服务器
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-## 配置说明
-
-### 环境变量
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `SPRING_PROFILES_ACTIVE` | 运行环境 | `dev` |
-| `jdbcUrl` | 数据库连接URL | - |
-| `jdbcUser` | 数据库用户名 | - |
-| `jdbcPassword` | 数据库密码 | - |
-| `dashscopeApiKey` | 通义千问API密钥 | - |
-| `token` | 管理员认证Token | - |
-| `storage` | 存储类型 | `local` |
-| `urlPrefix` | 文件访问URL前缀 | `localhost:8080` |
-
-### 配置文件
-
-- `application.yaml` - 基础配置
-- `application-dev.yaml` - 开发环境配置  
-- `application-prod.yaml` - 生产环境配置
-
-### 存储配置
-
-支持多种存储后端，通过配置切换：
-
-```yaml
-storage:
-  type: qiniu  # aliyun, qiniu, local
-  qiniu:
-    accessKey: your-access-key
-    secretKey: your-secret-key
-    bucket: your-bucket
-  aliyun:
-    endpoint: your-endpoint
-    accessKeyId: your-access-key-id
-    accessKeySecret: your-access-key-secret
-    bucketName: your-bucket
-```
-
-## API文档
-
-### 投稿相关
-
-```
-GET    /api/submission              # 获取投稿列表
-PUT    /api/submission/{id}         # 更新投稿 (需要auth)
-DELETE /api/submission/{id}         # 删除投稿 (需要auth)
-POST   /api/submission/{id}/feedback/{isLike}  # 点赞/反馈
-POST   /api/submission/{id}/pin     # 置顶投稿 (需要auth)
-```
-
-### 媒体文件
-
-```
-POST   /api/media/upload           # 上传文件
-GET    /api/media/download/{filename}  # 下载文件
-```
-
-### 管理接口
-
-```
-GET    /api/admin/statistic        # 获取统计数据 (需要auth)
-GET    /api/config                 # 获取配置信息
-```
-
-## 部署架构
-
-### 推荐部署方案
-
-```
-[Nginx/CDN] -> [Application] -> [MySQL]
-                    |
-                    v
-            [File Storage (OSS/七牛云)]
-                    |
-                    v
-            [AI Service (通义千问)]
-```
-
-### 监控和运维
-
-- **健康检查**: `/actuator/health`
-- **指标监控**: `/actuator/metrics`
-- **InfluxDB集成**: 自动发送运行时指标
-- **日志**: 使用Logback，支持不同环境的日志级别
-
-## 数据库初始化
-
-执行 `sql.sql` 文件创建所需的数据表：
-
+### 本地运行
 ```bash
-mysql -u username -p database_name < sql.sql
+# 设置环境变量
+export OPENAI_API_KEY=your_api_key
+export OPENAI_BASE_URL=https://api.openai.com
+export OPENAI_MODEL=gpt-4o-mini
+export SPRING_PROFILES_ACTIVE=prod
+
+# 运行应用
+mvn spring-boot:run
 ```
 
-主要表结构：
-- `submission` - 投稿内容
-- `media_content` - 媒体文件信息
-- `config` - 系统配置
-- `request_log` - 请求日志
-- `pinned_submission` - 置顶内容
+---
 
-## 开发指南
-
-### 项目结构
-
-```
-src/main/java/com/memes/
-├── annotation/          # 自定义注解
-├── aspect/             # AOP切面
-├── config/             # 配置类
-├── controller/         # REST控制器
-├── exception/          # 异常处理
-├── mapper/             # MyBatis映射器
-├── model/              # 数据模型
-├── schedule/           # 定时任务
-├── service/            # 业务服务
-└── util/               # 工具类
-```
-
-### 主要组件
-
-- **认证系统**: 基于注解的简单认证机制
-- **文件上传**: 支持多种存储后端的统一接口
-- **内容审核**: AI+规则双重审核机制
-- **缓存机制**: 配置热重载和请求缓存
-- **监控集成**: 自动指标收集和上报
-
-### 代码规范
-
-项目使用 Spotless 进行代码格式化：
-
-```bash
-# 检查代码格式
-mvn spotless:check
-
-# 自动格式化代码  
-mvn spotless:apply
-```
-
-## 性能优化
-
-- **懒加载**: Spring应用懒初始化
-- **连接池**: HikariCP数据库连接池
-- **缓存策略**: 配置和媒体内容缓存
-- **异步处理**: AI审核异步执行
-- **资源优化**: 静态资源CDN加速
-
-## 故障排查
-
-### 常见问题
-
-1. **数据库连接失败**
-   - 检查数据库服务是否启动
-   - 确认连接参数正确
-   - 查看防火墙设置
-
-2. **文件上传失败**
-   - 检查存储服务配置
-   - 确认访问密钥有效
-   - 查看文件大小限制
-
-3. **AI审核不工作**
-   - 确认通义千问API密钥有效
-   - 检查网络连接
-   - 查看API调用限额
-
-### 日志查看
+## 🛠️ 常用命令
 
 ```bash
 # 查看应用日志
-docker logs memes-api
+docker compose logs -f memes-app
 
-# 实时跟踪日志
-docker logs -f memes-api
+# 只看 AI 相关日志
+docker compose logs -f memes-app | grep -i "openai\|review\|llm"
+
+# 重启应用
+docker compose restart memes-app
+
+# 查看环境变量
+docker compose exec memes-app env | grep OPENAI
+
+# 进入容器调试
+docker compose exec memes-app sh
+
+# 清理并重新部署
+docker compose down -v && docker compose up -d
 ```
 
-## 贡献指南
+---
 
-1. Fork 本项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
+## 📊 监控和指标
 
-## 许可证
+应用提供详细的 Token 使用监控：
 
-本项目仅供学习交流使用。
+- `total_token` - 总 Token 消耗
+- `input_token` - 输入 Token 消耗
+- `output_token` - 输出 Token 消耗
+- `llm_review_count` - 审核结果统计
+- `llm_api_error` - API 错误次数
 
-## 联系方式
+访问 InfluxDB UI 查看详细指标: `http://localhost:8086`
 
-如有问题或建议，请通过 Issues 或 Discussions 联系。
+---
+
+## 🤝 参考和致谢
+
+本项目基于原作者的开源项目进行二次开发：
+
+**原项目信息**:
+- 原作者创建了基础的表情包分享平台
+- 提供了 MCP 协议支持和 SSE 实时推送功能
+- 建立了完整的社区功能框架
+
+**本项目改进**:
+- ✅ 将 AI 部分从 Alibaba DashScope 迁移到 Spring AI + OpenAI
+- ✅ 支持多种 AI 服务提供商（OpenAI、DeepSeek、自定义端点）
+- ✅ 添加详细的 Token 使用监控和成本追踪
+- ✅ 完善文档和部署指南
+- ✅ 优化错误处理和重试机制
+
+感谢原作者的开源贡献！
+
+---
+
+## 🚨 故障排查
+
+### 问题 1: AI 审核不工作
+
+**检查步骤**:
+1. 确认 `SPRING_PROFILES_ACTIVE=prod`
+2. 检查 API Key 是否正确
+3. 查看日志中是否有 "Starting AI reviewer"
+
+### 问题 2: Base URL 错误
+
+**错误**: `Invalid URL (POST /v1/v1/chat/completions)`
+
+**解决**: Base URL 不要包含 `/v1` 后缀
+- ❌ `https://api.openai.com/v1`
+- ✅ `https://api.openai.com`
+
+### 问题 3: 图片超时
+
+**错误**: `Download the media resource timed out`
+
+**解决**:
+- 确保 `urlPrefix` 配置正确
+- 图片 URL 必须可以从公网访问
+- 检查防火墙设置
+
+更多问题请查看 [完整故障排查指南](OPENAI_MIGRATION.md#-故障排查)
+
+---
+
+## 📝 更新日志
+
+### v2.0.0 (2025-11-03) - OpenAI 迁移版
+- ✅ 完全移除 DashScope SDK
+- ✅ 迁移到 Spring AI 1.0.1 + OpenAI
+- ✅ 支持多种 AI 服务提供商
+- ✅ 添加详细的监控和指标
+- ✅ 完善文档和故障排查指南
+
+### v1.0.0 (原版本)
+- 基础表情包分享功能
+- Alibaba DashScope AI 审核
+- MCP 协议支持
+
+---
+
+## 📄 开源协议
+
+本项目基于原项目进行二次开发，保留原项目的开源协议。
+
+---
+
+## 💬 联系和支持
+
+- **MCP 端点**: https://mcp.bupt.site/sse
+- **推荐客户端**: [Cherry Studio](https://github.com/CherryHQ/cherry-studio)
+- **迁移文档**: [OPENAI_MIGRATION.md](OPENAI_MIGRATION.md)
+
+如有问题，请查看文档或提交 Issue。
+
+---
+
+**⭐ 如果这个项目对你有帮助，欢迎 Star 支持！**
+
+**Made with ❤️ by szemeng76**
+**Based on the original open-source project**
