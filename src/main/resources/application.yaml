@@ -16,8 +16,11 @@ spring:
   main:
     lazy-initialization: true
 
-dashscope:
-  apiKey: ${dashscopeApiKey}
+openai:
+  apiKey: ${OPENAI_API_KEY}
+  baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  model: ${OPENAI_MODEL:gpt-4o}
+  visionModel: ${OPENAI_VISION_MODEL:gpt-4o}
 server:
   port: 8080
 

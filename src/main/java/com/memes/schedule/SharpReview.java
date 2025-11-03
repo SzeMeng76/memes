@@ -2,7 +2,6 @@ package com.memes.schedule;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -10,58 +9,47 @@ import java.util.concurrent.Executors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
 
-import com.alibaba.dashscope.aigc.generation.Generation;
-import com.alibaba.dashscope.aigc.generation.GenerationParam;
-import com.alibaba.dashscope.aigc.generation.GenerationResult;
-import com.alibaba.dashscope.aigc.generation.GenerationUsage;
-import com.alibaba.dashscope.common.Message;
-import com.alibaba.dashscope.common.Role;
 import com.memes.model.pojo.MediaContent;
 import com.memes.service.MediaContentService;
-import com.memes.util.GsonUtil;
 
+import io.github.sashirestela.openai.SimpleOpenAI;
+import io.github.sashirestela.openai.domain.chat.ChatRequest;
+import io.github.sashirestela.openai.domain.chat.ChatResponse;
+import io.github.sashirestela.openai.domain.chat.message.ChatMsg;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
-import lombok.SneakyThrows;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
 @Lazy(value = false)
-@ConditionalOnProperty(value = "spring.profiles.active", havingValue = "prod")
+@Profile("prod")
 public class SharpReview {
 
     final MeterRegistry registry;
 
-    private static final String MODEL = "deepseek-v3";
-
-    private static final String SYSTEM = Role.SYSTEM.getValue();
-
-    private static Message SYS_MSG;
+    private static ChatMsg SYS_MSG;
 
     @Value("classpath:sharp_review.xml")
     private Resource promptResource;
 
-    @PostConstruct
-    public void init() throws IOException {
-        String SYS_PROMPT = StreamUtils.copyToString(promptResource.getInputStream(), StandardCharsets.UTF_8);
-        SYS_MSG = Message
-            .builder()
-            .role(SYSTEM)
-            .content(SYS_PROMPT)
-            .build();
-        startReview();
-    }
-
-    @Value("${dashscope.apiKey}")
+    @Value("${openai.apiKey}")
     private String apiKey;
 
+    @Value("${openai.baseUrl}")
+    private String baseUrl;
+
+    @Value("${openai.model}")
+    private String model;
+
+    private SimpleOpenAI openAI;
     private final MediaContentService mediaContentService;
     private final ExecutorService reviewExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r);
@@ -72,6 +60,26 @@ public class SharpReview {
     public SharpReview(MeterRegistry registry, MediaContentService mediaContentService) {
         this.registry = registry;
         this.mediaContentService = mediaContentService;
+    }
+
+    @PostConstruct
+    public void init() throws IOException {
+        String SYS_PROMPT = StreamUtils.copyToString(promptResource.getInputStream(), StandardCharsets.UTF_8);
+        SYS_MSG = ChatMsg.SystemMessage.of(SYS_PROMPT);
+
+        // Initialize OpenAI client with custom base URL support
+        openAI = SimpleOpenAI.builder()
+            .apiKey(apiKey)
+            .baseUrl(baseUrl)
+            .build();
+
+        log.info("OpenAI client initialized for sharp review with base URL: {}, model: {}", baseUrl, model);
+        startReview();
+    }
+
+    @PreDestroy
+    public void cleanup() {
+        reviewExecutor.shutdownNow();
     }
 
     private void startReview() {
@@ -99,27 +107,36 @@ public class SharpReview {
     /**
      * 图片锐评
      */
-    @SneakyThrows
     private void sharpReview(MediaContent mediaContent) {
         log.info("开始锐评：{}", mediaContent.getId());
         try {
-            Generation gen = new Generation();
-            Message userMsg = Message
-                .builder()
-                .role(Role.USER.getValue())
-                .content(mediaContent.getLlmDescription())
+            // Create chat request
+            var chatRequest = ChatRequest.builder()
+                .model(model)
+                .messages(List.of(
+                    SYS_MSG,
+                    ChatMsg.UserMessage.of(mediaContent.getLlmDescription())
+                ))
+                .temperature(0.7)
+                .maxTokens(500)
                 .build();
-            GenerationParam param = GenerationParam
-                .builder()
-                .apiKey(apiKey)
-                .model(MODEL)
-                .messages(Arrays.asList(SYS_MSG, userMsg))
-                .resultFormat(GenerationParam.ResultFormat.MESSAGE)
-                .build();
-            GenerationResult call = gen.call(param);
-            GenerationUsage usage = call.getUsage();
-            log.info("LLM API Usage: {}", GsonUtil.toJson(usage));
-            String content = call.getOutput().getChoices().getFirst().getMessage().getContent();
+
+            // Call OpenAI API
+            ChatResponse response = openAI.chatCompletions()
+                .create(chatRequest)
+                .join();
+
+            // Handle usage statistics
+            var usage = response.getUsage();
+            log.info("OpenAI API Usage: prompt_tokens={}, completion_tokens={}, total_tokens={}",
+                usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens());
+
+            registry.counter("total_token", "model", model).increment(usage.getTotalTokens());
+            registry.counter("input_token", "model", model).increment(usage.getPromptTokens());
+            registry.counter("output_token", "model", model).increment(usage.getCompletionTokens());
+
+            // Get response content
+            String content = response.firstContent();
             if (StringUtils.isNotEmpty(content)) {
                 log.info("LLM Output: {}", content);
                 mediaContent.setSharpReview(content);
@@ -127,10 +144,9 @@ public class SharpReview {
                 log.warn("LLM Output is empty for media content: {}", mediaContent.getId());
                 mediaContent.setSharpReview("[REVIEW_FAILED]");
             }
+
             mediaContentService.updateById(mediaContent);
-            registry.counter("total_token", "model", MODEL).increment(usage.getTotalTokens());
-            registry.counter("input_token", "model", MODEL).increment(usage.getInputTokens());
-            registry.counter("output_token", "model", MODEL).increment(usage.getOutputTokens());
+
         } catch (Exception e) {
             log.error("Review failed for media content: {}", mediaContent.getId(), e);
             mediaContent.setSharpReview("[REVIEW_FAILED]");
