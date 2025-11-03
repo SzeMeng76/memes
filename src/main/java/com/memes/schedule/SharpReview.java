@@ -117,12 +117,12 @@ public class SharpReview {
             // Handle usage statistics
             var usage = response.getMetadata().getUsage();
             if (usage != null) {
-                log.info("OpenAI API Usage: prompt_tokens={}, generation_tokens={}, total_tokens={}",
-                    usage.getPromptTokens(), usage.getGenerationTokens(), usage.getTotalTokens());
+                log.info("OpenAI API Usage: prompt_tokens={}, completion_tokens={}, total_tokens={}",
+                    usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens());
 
                 registry.counter("total_token", "model", model).increment(usage.getTotalTokens());
                 registry.counter("input_token", "model", model).increment(usage.getPromptTokens());
-                registry.counter("output_token", "model", model).increment(usage.getGenerationTokens());
+                registry.counter("output_token", "model", model).increment(usage.getCompletionTokens());
             }
 
             // Get response content
