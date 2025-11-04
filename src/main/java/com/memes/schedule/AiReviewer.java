@@ -122,14 +122,14 @@ public class AiReviewer {
 
             // Create prompt with options
             // GPT-5 series models don't support custom temperature or maxTokens
-            var builder = OpenAiChatOptions.builder().model(model);
+            var optionsBuilder = OpenAiChatOptions.builder().model(model);
 
             if (!model.startsWith("gpt-5") && !model.startsWith("o1") && !model.startsWith("o3")) {
                 // Only non-reasoning models support these parameters
-                builder.temperature(0.0).maxTokens(1000);
+                optionsBuilder.temperature(0.0).maxTokens(1000);
             }
 
-            var chatOptions = builder.build();
+            var chatOptions = optionsBuilder.build();
 
             var prompt = new Prompt(List.of(systemMessage, userMessage), chatOptions);
 
