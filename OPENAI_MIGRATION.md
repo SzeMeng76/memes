@@ -55,7 +55,7 @@ spring:
 
 ## 🚀 部署步骤
 
-### 方案 1: 使用 OpenAI
+### 方案 1: 使用 OpenAI (单一模型)
 
 1. **获取 API Key**
    - 访问 https://platform.openai.com/api-keys
@@ -64,33 +64,63 @@ spring:
 2. **更新 docker-compose.yml**
    ```yaml
    - OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
-   - OPENAI_BASE_URL=https://api.openai.com/v1
+   - OPENAI_BASE_URL=https://api.openai.com
    - OPENAI_MODEL=gpt-4o-mini
    ```
 
 3. **推荐模型**
-   - `gpt-4o-mini` - 性价比最高，速度快
-   - `gpt-4o` - 最强能力，适合复杂任务
-   - `gpt-4-turbo` - 平衡性能和成本
+   - `gpt-4o-mini` - 性价比最高，支持 Vision ✅
+   - `gpt-4o` - 最强能力，适合复杂任务 ✅
+   - `gpt-5-mini` - 最新推理模型，成本更低 ✅ **NEW!**
 
-### 方案 2: 使用 DeepSeek (更便宜！)
+**注意**: GPT-5 系列模型会自动适配参数限制（不支持自定义 temperature 和 maxTokens）
+
+### 方案 2: 使用 DeepSeek (仅文本任务)
+
+⚠️ **重要**: DeepSeek **不支持 Vision API**，无法进行图片审核！
 
 1. **获取 API Key**
    - 访问 https://platform.deepseek.com/
    - 创建账号并获取 API Key
 
-2. **更新 docker-compose.yml**
+2. **更新 docker-compose.yml** (仅适用于纯文本场景)
    ```yaml
    - OPENAI_API_KEY=sk-xxxxxxxxxxxxx
    - OPENAI_BASE_URL=https://api.deepseek.com
    - OPENAI_MODEL=deepseek-chat
    ```
 
-3. **DeepSeek 优势**
-   - 💰 价格便宜（约为 OpenAI 的 1/10）
-   - 🌍 对海外服务器友好
-   - 🚀 响应速度快
-   - ✅ 完全兼容 OpenAI API
+3. **DeepSeek 局限性**
+   - ❌ 不支持图片输入（Vision API）
+   - ❌ 不能用于图片审核功能
+   - ✅ 仅适合纯文本生成任务
+
+### 方案 2.5: 双模型配置 (推荐省钱方案 💰)
+
+**最佳实践**: 图片审核用 OpenAI，文本生成用 DeepSeek
+
+1. **使用 OpenRouter 或其他兼容服务**
+   ```yaml
+   environment:
+     # 共享的 API 配置
+     - OPENAI_API_KEY=sk-xxxxxxxxxxxxx
+     - OPENAI_BASE_URL=https://openrouter.ai/api/v1
+
+     # 图片审核使用支持 Vision 的模型
+     - VISION_MODEL=openai/gpt-4o-mini
+
+     # 文本锐评使用便宜的模型
+     - TEXT_MODEL=deepseek/deepseek-chat
+   ```
+
+2. **成本优势**
+   - 💰 总成本降低约 50%
+   - 🎯 图片审核质量不受影响
+   - 🚀 文本生成速度更快
+
+3. **支持的端点**
+   - OpenRouter: `https://openrouter.ai/api/v1`
+   - 自建代理: `https://api.yourdomain.com`
 
 ### 方案 3: 使用 Gemini (Google)
 
@@ -379,8 +409,8 @@ echo ".env" >> .gitignore
 
 **解决**:
 1. 确保使用支持 Vision 的模型
-   - ✅ `gpt-4o`, `gpt-4o-mini`
-   - ✅ `deepseek-chat` (支持多模态)
+   - ✅ `gpt-4o`, `gpt-4o-mini`, `gpt-5-mini`
+   - ❌ `deepseek-chat` (**不支持 Vision！**)
    - ❌ `gpt-3.5-turbo` (不支持图片)
 2. 检查图片格式是否支持（PNG, JPEG, WEBP, GIF）
 
@@ -406,18 +436,79 @@ echo ".env" >> .gitignore
 2. 所有 `spring:` 配置应该在同一个块下
 3. 使用 YAML linter 验证文件格式
 
+### 问题 8: GPT-5 模型 "Unsupported value" 或参数错误 ⭐ **NEW!**
+**原因**: GPT-5 系列模型不支持自定义 `temperature` 和 `maxTokens` 参数
+
+**错误示例**:
+```
+Error: Unsupported value: temperature must be 1
+Error: max_tokens parameter is not supported, use max_completion_tokens
+```
+
+**解决**:
+1. **确认代码版本**: 最新代码已自动适配 GPT-5 参数限制
+2. **检查模型名称**:
+   ```bash
+   docker compose exec memes-app env | grep OPENAI_MODEL
+   ```
+3. **支持的 GPT-5 模型**:
+   - `gpt-5-mini` - 轻量级推理模型
+   - `gpt-5` - 完整推理模型
+   - `o1`, `o3` 系列 - 其他推理模型
+4. **代码会自动检测**: 如果模型名以 `gpt-5`, `o1`, `o3` 开头，会跳过参数设置
+
+**技术细节**:
+- GPT-5 仅支持 `temperature=1`（默认值）
+- 必须使用 `max_completion_tokens` 而非 `max_tokens`
+- 不支持 `top_p`, `presence_penalty`, `frequency_penalty` 等参数
+- 原因：推理模型使用多轮生成和验证，外部参数会破坏校准
+
+### 问题 9: DeepSeek 图片审核失败 "unknown variant image_url"
+**原因**: DeepSeek 不支持 Vision API（图片输入）
+
+**错误信息**:
+```
+unknown variant `image_url`, expected `text`
+Failed to deserialize the JSON body
+```
+
+**解决**:
+1. **不要用 DeepSeek 做图片审核** - 它只支持纯文本！
+2. **使用双模型配置**:
+   ```yaml
+   - VISION_MODEL=openai/gpt-4o-mini   # 图片审核
+   - TEXT_MODEL=deepseek/deepseek-chat # 文本生成
+   ```
+3. **或者完全切换到支持 Vision 的模型**:
+   - `gpt-4o-mini`
+   - `gpt-4o`
+   - `gpt-5-mini`
+
 ---
 
 ## 📊 成本对比
 
-| 服务 | 输入价格 (每 1M tokens) | 输出价格 (每 1M tokens) | 特点 |
-|------|------------------------|------------------------|------|
-| **OpenAI GPT-4o-mini** | $0.15 | $0.60 | 性价比高，推荐 |
-| **OpenAI GPT-4o** | $2.50 | $10.00 | 能力最强 |
-| **DeepSeek** | $0.14 | $0.28 | 最便宜，速度快 |
-| **Gemini Pro** | $0.125 | $0.375 | Google 服务 |
+| 服务 | 输入价格 (每 1M tokens) | 输出价格 (每 1M tokens) | Vision 支持 | 特点 |
+|------|------------------------|------------------------|------------|------|
+| **OpenAI GPT-4o-mini** | $0.15 | $0.60 | ✅ | 性价比高，稳定推荐 |
+| **OpenAI GPT-4o** | $2.50 | $10.00 | ✅ | 能力最强，复杂任务 |
+| **OpenAI GPT-5-mini** ⭐ | ~$0.075 | ~$0.30 | ✅ | 最新推理模型，成本减半 |
+| **DeepSeek** | $0.14 | $0.28 | ❌ | 仅文本，不支持图片 |
+| **Gemini Pro** | $0.125 | $0.375 | ✅ | Google 服务 |
 
-💡 **建议**: 开发/测试用 DeepSeek，生产环境用 GPT-4o-mini
+### 配置方案成本对比
+
+| 配置方案 | 月成本估算 (中等流量) | 说明 |
+|---------|-------------------|------|
+| **全 GPT-4o-mini** | $30-50 | 稳定可靠，生产环境首选 |
+| **全 GPT-5-mini** ⭐ | $15-25 | 最新模型，成本减半 |
+| **双模型（推荐）** 💰 | $20-35 | 图片用 GPT-4o-mini，文本用 DeepSeek |
+| **全 DeepSeek** | ❌ | 不支持图片审核，不可行 |
+
+💡 **推荐方案**:
+- **生产环境**: 图片用 GPT-4o-mini，文本用 DeepSeek（成本降低 50%）
+- **预算充足**: 全 GPT-4o-mini（最稳定）
+- **尝鲜用户**: 全 GPT-5-mini（新功能，成本最低）
 
 ---
 
@@ -633,7 +724,9 @@ docker stats memes-app
 |--------|------|--------|------|
 | `OPENAI_API_KEY` | ✅ | - | OpenAI API 密钥 |
 | `OPENAI_BASE_URL` | ✅ | `https://api.openai.com` | API 基础 URL（不含 /v1） |
-| `OPENAI_MODEL` | ✅ | `gpt-4o-mini` | 使用的模型名称 |
+| `OPENAI_MODEL` | ⭕ | `gpt-4o-mini` | 单一模型配置 |
+| `VISION_MODEL` ⭐ | ⭕ | `${OPENAI_MODEL}` | 图片审核专用模型（双模型配置） |
+| `TEXT_MODEL` ⭐ | ⭕ | `${OPENAI_MODEL}` | 文本生成专用模型（双模型配置） |
 | `SPRING_PROFILES_ACTIVE` | ✅ | `prod` | Spring Profile（必须为 prod 才启用 AI） |
 | `jdbcUrl` | ✅ | - | 数据库连接 URL |
 | `jdbcUser` | ✅ | - | 数据库用户名 |
@@ -713,6 +806,23 @@ docker stats memes-app
 ---
 
 ## 📝 更新日志
+
+### v2.1.0 (2025-11-04) ⭐ **最新版本**
+- ✅ **GPT-5 系列支持**: 自动适配 GPT-5/o1/o3 的参数限制
+- ✅ **双模型配置**: 图片审核和文本生成可使用不同模型
+- ✅ **成本优化**: 支持混合使用 OpenAI 和 DeepSeek，降低 50% 成本
+- ✅ **DeepSeek 限制说明**: 明确标注不支持 Vision API
+- ✅ **完善文档**: 添加 GPT-5 和双模型配置指南
+- ✅ **故障排查**: 新增 GPT-5 参数错误和 DeepSeek Vision 错误解决方案
+
+**新增环境变量**:
+- `VISION_MODEL` - 图片审核专用模型
+- `TEXT_MODEL` - 文本生成专用模型
+
+**技术改进**:
+- 自动检测推理模型（gpt-5, o1, o3）并跳过不支持的参数
+- 修复变量名冲突问题
+- 优化代码可读性和维护性
 
 ### v2.0.0 (2025-11-03)
 - ✅ 完全移除 DashScope SDK

@@ -90,7 +90,9 @@
 
 ## 🔧 配置选项
 
-### 使用 OpenAI (官方)
+### 单一模型配置
+
+#### 使用 OpenAI GPT-4o-mini (推荐)
 
 ```yaml
 - OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
@@ -99,10 +101,11 @@
 ```
 
 **推荐模型**:
-- `gpt-4o-mini` - 性价比最高
+- `gpt-4o-mini` - 性价比最高，支持 Vision
 - `gpt-4o` - 能力最强
+- `gpt-5-mini` - 最新推理模型（自动适配参数）
 
-### 使用 DeepSeek (更便宜)
+#### 使用 DeepSeek (仅文本任务)
 
 ```yaml
 - OPENAI_API_KEY=sk-xxxxxxxxxxxxx
@@ -110,10 +113,29 @@
 - OPENAI_MODEL=deepseek-chat
 ```
 
+**注意**: ⚠️ DeepSeek 不支持图片审核（Vision API），仅适用于纯文本任务。
+
+### 双模型配置 (省钱方案 💰)
+
+分别配置图片审核和文本生成使用不同的模型：
+
+```yaml
+environment:
+  # 共享的 API 配置
+  - OPENAI_API_KEY=sk-xxxxxxxxxxxxx
+  - OPENAI_BASE_URL=https://openrouter.ai/api/v1
+
+  # 图片审核使用 GPT-4o-mini（必须支持 Vision）
+  - VISION_MODEL=openai/gpt-4o-mini
+
+  # 文本锐评使用 DeepSeek（便宜）
+  - TEXT_MODEL=deepseek/deepseek-chat
+```
+
 **优势**:
-- 💰 价格约为 OpenAI 的 1/10
-- 🚀 响应速度快
-- 🌍 对海外服务器友好
+- 💰 成本降低约 50%（文本任务用便宜的模型）
+- 🎯 图片审核用强大的 Vision 模型
+- 🚀 文本生成用快速便宜的模型
 
 ### 使用自定义端点
 
@@ -138,13 +160,25 @@
 
 ## 💰 成本对比
 
-| 服务 | 输入价格 (每 1M tokens) | 输出价格 (每 1M tokens) | 推荐场景 |
-|------|------------------------|------------------------|---------|
-| **OpenAI GPT-4o-mini** | $0.15 | $0.60 | 生产环境，图片审核 |
-| **OpenAI GPT-4o** | $2.50 | $10.00 | 复杂审核任务 |
-| **DeepSeek** | $0.14 | $0.28 | 开发测试，成本优化 |
+| 服务 | 输入价格 (每 1M tokens) | 输出价格 (每 1M tokens) | Vision 支持 | 推荐场景 |
+|------|------------------------|------------------------|------------|---------|
+| **OpenAI GPT-4o-mini** | $0.15 | $0.60 | ✅ | 图片审核，稳定可靠 |
+| **OpenAI GPT-4o** | $2.50 | $10.00 | ✅ | 复杂审核，能力最强 |
+| **OpenAI GPT-5-mini** | ~$0.075 | ~$0.30 | ✅ | 最新模型，成本更低 |
+| **DeepSeek** | $0.14 | $0.28 | ❌ | 仅文本，纯文本任务 |
 
-💡 **建议**: 开发/测试用 DeepSeek，生产环境用 GPT-4o-mini
+### 配置方案成本对比
+
+| 配置方案 | 月成本估算 | 说明 |
+|---------|-----------|------|
+| **全 GPT-4o-mini** | $30-50 | 稳定可靠，适合生产环境 |
+| **全 GPT-5-mini** | $15-25 | 最新模型，成本减半 |
+| **双模型（推荐）** | $20-35 | 图片用 GPT-4o-mini + 文本用 DeepSeek |
+
+💡 **推荐方案**:
+- **生产环境**: 图片用 GPT-4o-mini，文本用 DeepSeek（成本降低 50%）
+- **预算充足**: 全 GPT-4o-mini（最稳定）
+- **尝鲜**: 全 GPT-5-mini（新功能，成本低）
 
 ---
 
