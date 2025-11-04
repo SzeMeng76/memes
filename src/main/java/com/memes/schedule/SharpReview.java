@@ -40,7 +40,7 @@ public class SharpReview {
     @Value("classpath:sharp_review.xml")
     private Resource promptResource;
 
-    @Value("${spring.ai.openai.chat.options.model}")
+    @Value("${ai.text-model:${spring.ai.openai.chat.options.model}}")
     private String model;
 
     private final MediaContentService mediaContentService;
@@ -103,11 +103,15 @@ public class SharpReview {
             var userMessage = new org.springframework.ai.chat.messages.UserMessage(mediaContent.getLlmDescription());
 
             // Create prompt with options
-            var chatOptions = OpenAiChatOptions.builder()
-                .model(model)
-                .temperature(0.7)
-                .maxTokens(500)
-                .build();
+            // GPT-5 series models don't support custom temperature or maxTokens
+            var builder = OpenAiChatOptions.builder().model(model);
+
+            if (!model.startsWith("gpt-5") && !model.startsWith("o1") && !model.startsWith("o3")) {
+                // Only non-reasoning models support these parameters
+                builder.temperature(0.7).maxTokens(500);
+            }
+
+            var chatOptions = builder.build();
 
             var prompt = new Prompt(List.of(systemMessage, userMessage), chatOptions);
 

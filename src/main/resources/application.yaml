@@ -24,6 +24,11 @@ spring:
         options:
           model: ${OPENAI_MODEL:gpt-4o-mini}
           temperature: 0.0
+
+# Dual model configuration (vision vs text)
+ai:
+  vision-model: ${VISION_MODEL:${OPENAI_MODEL:gpt-4o-mini}}
+  text-model: ${TEXT_MODEL:${OPENAI_MODEL:gpt-4o-mini}}
 server:
   port: 8080
 
