@@ -1,10 +1,10 @@
-FROM maven:3.9.4-amazoncorretto-21 AS MAVEN_BUILD
+FROM maven:3.9.4-amazoncorretto-21 AS maven_build
 WORKDIR /app
 COPY . .
 RUN mvn clean package -Dmaven.test.skip=true -Dspotless.check.skip=true
 
 FROM openjdk:21-rc-oraclelinux8
-COPY --from=MAVEN_BUILD /app/target/*.jar /app/application.jar
+COPY --from=maven_build /app/target/*.jar /app/application.jar
 EXPOSE 8080
 
 

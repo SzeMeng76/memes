@@ -40,7 +40,7 @@ public class SharpReview {
     @Value("classpath:sharp_review.xml")
     private Resource promptResource;
 
-    @Value("${ai.text-model:${spring.ai.openai.chat.options.model}}")
+    @Value("${ai.text-model:${spring.ai.openai.chat.model}}")
     private String model;
 
     private final MediaContentService mediaContentService;

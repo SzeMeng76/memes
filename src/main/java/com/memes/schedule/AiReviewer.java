@@ -49,7 +49,7 @@ public class AiReviewer {
     @Value("classpath:prompt.xml")
     private Resource promptResource;
 
-    @Value("${ai.vision-model:${spring.ai.openai.chat.options.model}}")
+    @Value("${ai.vision-model:${spring.ai.openai.chat.model}}")
     private String model;
 
     private final MediaContentService mediaContentService;
